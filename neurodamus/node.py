@@ -912,7 +912,7 @@ class Node:
 
         lfp_disabled = not self._circuits.global_manager._lfp_manager._lfp_file
         if rep_type == "lfp" and lfp_disabled:
-            logging.warning("LFP reports are disabled. electrodes_file might be missing.")
+            logging.error("LFP reports are disabled. Electrodes file might be missing or simulator is not CoreNEURON")
             return None
         logging.info(" * %s (Type: %s, Target: %s)", rep_name, rep_type, rep_conf["Target"])
 

@@ -447,16 +447,16 @@ class LFPManager:
         except IOError as e:
             raise ConfigurationError(e)
         # Check that the file contains the required groups and attributes
-        required_groups = ['electrodes', 'neuron_ids', 'sec_ids']
+        required_groups = ['electrodes', 'node_ids', 'sec_ids']
         for group in required_groups:
             if group not in self._lfp_file:
                 raise ConfigurationError("LFP weights file format is wrong.Required group "
                                          "not found in file: {}".format(group))
-        nodeids_group = self._lfp_file["neuron_ids"]
+        nodeids_group = self._lfp_file["node_ids"]
         try:
             circuit = nodeids_group.attrs['circuit']
         except KeyError:
-            raise ConfigurationError("'circuit' attribute not found in 'neuron_ids' "
+            raise ConfigurationError("'circuit' attribute not found in 'node_ids' "
                                      "group of LFP weights file")
         logging.info("Circuit of the lfp config file: '%s'", circuit)
         # Check that the circuit matches with any cell manager

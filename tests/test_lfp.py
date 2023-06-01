@@ -16,8 +16,8 @@ def test_file(tmpdir):
     test_file.create_group("sec_ids")
     test_file["sec_ids"].create_dataset("0", data=[0, 1])
     test_file["sec_ids"].create_dataset("1", data=[2, 3])
-    neuron_ids = test_file.create_dataset("neuron_ids", data=[0, 1])
-    neuron_ids.attrs["circuit"] = "test_circuit.h5"
+    node_ids = test_file.create_dataset("node_ids", data=[0, 1])
+    node_ids.attrs["circuit"] = "test_circuit.h5"
     yield test_file
 
 
@@ -46,16 +46,16 @@ def test_load_lfp_config(tmpdir, test_file):
     assert lfp._lfp_file
     assert isinstance(lfp._lfp_file, h5py.File)
     assert "electrodes" in lfp._lfp_file
-    assert "neuron_ids" in lfp._lfp_file
+    assert "node_ids" in lfp._lfp_file
     assert "sec_ids" in lfp._lfp_file
-    assert lfp._lfp_file["neuron_ids"].attrs['circuit'] == "test_circuit.h5"
+    assert lfp._lfp_file["node_ids"].attrs['circuit'] == "test_circuit.h5"
 
     # Test loading LFP configuration from file with wrong format
-    del lfp._lfp_file["neuron_ids"].attrs['circuit']
+    del lfp._lfp_file["node_ids"].attrs['circuit']
     with pytest.raises(ConfigurationError):
         lfp.load_lfp_config(lfp_weights_file, circuit_list)
 
-    del lfp._lfp_file["neuron_ids"]
+    del lfp._lfp_file["node_ids"]
     with pytest.raises(ConfigurationError):
         lfp.load_lfp_config(lfp_weights_file, circuit_list)
 
