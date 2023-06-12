@@ -447,8 +447,12 @@ class Node:
             if SimConfig.use_coreneuron:
                 lfp_manager = self._circuits.global_manager._lfp_manager
                 cell_managers = self._circuits.global_manager._cell_managers
-                circuit_files = [manager._circuit_conf.CellLibraryFile for manager in cell_managers]
-                lfp_manager.load_lfp_config(lfp_weights_file, circuit_files)
+                circuit_list = {
+                    manager.population_name: manager._circuit_conf.CellLibraryFile
+                    for manager in cell_managers
+                    if manager.population_name is not None
+                }
+                lfp_manager.load_lfp_config(lfp_weights_file, circuit_list)
             else:
                 logging.warning("Online LFP supported only with CoreNEURON.")
 
@@ -912,7 +916,8 @@ class Node:
 
         lfp_disabled = not self._circuits.global_manager._lfp_manager._lfp_file
         if rep_type == "lfp" and lfp_disabled:
-            logging.error("LFP reports are disabled. Electrodes file might be missing or simulator is not CoreNEURON")
+            logging.error("LFP reports are disabled. Electrodes file might be missing"
+                          " or simulator is not set to CoreNEURON")
             return None
         logging.info(" * %s (Type: %s, Target: %s)", rep_name, rep_type, rep_conf["Target"])
 

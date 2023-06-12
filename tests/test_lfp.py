@@ -21,17 +21,37 @@ def test_file(tmpdir):
     """
     Generates example weights file
     """
+    # Define populations and their GIDs
+    populations = {
+        "default": [62797, 63698],
+        "other_pop": [77777, 88888]
+    }
+
     # Create a test HDF5 file with sample data
     test_file = h5py.File(tmpdir.join("test_file.h5"), 'w')
-    test_file.create_group("electrodes")
-    test_file["electrodes"].create_group("electrode_grid")
-    test_file["electrodes"]["electrode_grid"].create_dataset("62798", data=[[0.1, 0.2], [0.3, 0.4]])
-    test_file["electrodes"]["electrode_grid"].create_dataset("63699", data=[[0.5, 0.6], [0.7, 0.8]])
-    test_file.create_group("sec_ids")
-    test_file["sec_ids"].create_dataset("62798", data=[0, 1])
-    test_file["sec_ids"].create_dataset("63699", data=[1, 2])
-    node_ids = test_file.create_dataset("node_ids", data=[62798, 63699])
-    node_ids.attrs["circuit"] = "test_circuit.h5"
+
+    for population, gids in populations.items():
+        # Create electrodes group
+        electrodes_group = test_file.create_group("electrodes/" + population)
+        for gid in gids:
+            # Create dataset for each GID under the electrodes group
+            data = [[0.1, 0.2], [0.3, 0.4]] if gid in [62797, 77777] else [[0.5, 0.6], [0.7, 0.8]]
+            electrodes_group.create_dataset(str(gid), data=data)
+
+        # Create population group
+        population_group = test_file.create_group(population)
+
+        # Create node_ids dataset and set circuit attribute
+        node_ids = population_group.create_dataset("node_ids", data=gids)
+        node_ids.attrs["circuit"] = f"test_circuit_{population}.h5"
+
+        # Create sec_ids group
+        sec_ids_group = population_group.create_group("sec_ids")
+        for gid in gids:
+            # Create dataset for each GID under the sec_ids group
+            data = [0, 1] if gid in [62797, 77777] else [1, 2]
+            sec_ids_group.create_dataset(str(gid), data=data)
+
     yield test_file
 
 
@@ -46,37 +66,37 @@ def test_load_lfp_config(tmpdir, test_file):
     # Test loading LFP config file from invalid circuit
     lfp_invalid = LFPManager()
     lfp_weights_file = tmpdir.join("test_file.h5")
-    circuit_list_invalid = ["invalid_circuit.h5"]
-    lfp_invalid.load_lfp_config(lfp_weights_file, circuit_list_invalid)
+    pop_circuit_invalid = {"default": "invalid_circuit.h5"}
+    lfp_invalid.load_lfp_config(lfp_weights_file, pop_circuit_invalid)
     # File is closed
     assert not lfp_invalid._lfp_file
 
     # Create an instance of the class
     lfp = LFPManager()
-    circuit_list = ["test_circuit2.h5", "test_circuit.h5"]
+    pop_circuit_dict = {"wrong_pop": "test_circuit2.h5", "default": "test_circuit_default.h5"}
 
     # Test loading LFP configuration from file
-    lfp.load_lfp_config(lfp_weights_file, circuit_list)
+    lfp.load_lfp_config(lfp_weights_file, pop_circuit_dict)
     assert lfp._lfp_file
     assert isinstance(lfp._lfp_file, h5py.File)
-    assert "electrodes" in lfp._lfp_file
-    assert "node_ids" in lfp._lfp_file
-    assert "sec_ids" in lfp._lfp_file
-    assert lfp._lfp_file["node_ids"].attrs['circuit'] == "test_circuit.h5"
+    assert "/electrodes/default" in lfp._lfp_file
+    assert "/default/node_ids" in lfp._lfp_file
+    assert "/default/sec_ids" in lfp._lfp_file
+    assert lfp._lfp_file["default"]["node_ids"].attrs['circuit'] == "test_circuit_default.h5"
 
     # Test loading LFP configuration from file with wrong format
-    del lfp._lfp_file["node_ids"].attrs['circuit']
+    del lfp._lfp_file["default"]["node_ids"].attrs['circuit']
     with pytest.raises(ConfigurationError):
-        lfp.load_lfp_config(lfp_weights_file, circuit_list)
+        lfp.load_lfp_config(lfp_weights_file, pop_circuit_dict)
 
-    del lfp._lfp_file["node_ids"]
+    del lfp._lfp_file["default"]["node_ids"]
     with pytest.raises(ConfigurationError):
-        lfp.load_lfp_config(lfp_weights_file, circuit_list)
+        lfp.load_lfp_config(lfp_weights_file, pop_circuit_dict)
 
     # Test loading LFP configuration from invalid file
     lfp_weights_invalid_file = "./invalid_file.h5"
     with pytest.raises(ConfigurationError):
-        lfp.load_lfp_config(lfp_weights_invalid_file, circuit_list)
+        lfp.load_lfp_config(lfp_weights_invalid_file, pop_circuit_dict)
 
 
 def test_read_lfp_factors(test_file):
@@ -88,7 +108,7 @@ def test_read_lfp_factors(test_file):
     # Create an instance of the class
     lfp = LFPManager()
     lfp._lfp_file = test_file
-    # Test the function with valid input
+    # Test the function with valid input (node_id is 0 based, so expected 62797 in the file)
     gid = 62798
     section_ids = [1, 2]
     result = lfp.read_lfp_factors(gid, section_ids).to_python()
@@ -158,10 +178,11 @@ def test_v5_sonata_lfp(tmpdir, test_file):
 
     config_file = str(SIM_DIR / "v5_sonata" / "simulation_config_lfp.json")
     output_dir = str(SIM_DIR / "v5_sonata" / "output_coreneuron")
+    population_name = "default"
 
-    test_file["node_ids"].attrs['circuit'] = "/gpfs/bbp.cscs.ch/project/proj1/circuits/" \
-                                             "SomatosensoryCxS1-v5.r0/O1-sonata/sonata/networks" \
-                                             "/nodes/default/nodes.h5"
+    test_file[population_name]["node_ids"].attrs['circuit'] = "/gpfs/bbp.cscs.ch/project/proj1/" \
+                                             "circuits/SomatosensoryCxS1-v5.r0/O1-sonata/sonata" \
+                                             "/networks/nodes/default/nodes.h5"
     lfp_weights_file = tmpdir.join("test_file.h5")
     tmp_file = _create_tmpconfig_lfp(config_file, lfp_weights_file)
 

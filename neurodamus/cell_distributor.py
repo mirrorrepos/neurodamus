@@ -446,29 +446,43 @@ class LFPManager:
             self._lfp_file = h5py.File(lfp_weights_file, 'r')
         except IOError as e:
             raise ConfigurationError(e)
-        # Check that the file contains the required groups and attributes
-        required_groups = ['electrodes', 'node_ids', 'sec_ids']
-        for group in required_groups:
-            if group not in self._lfp_file:
-                raise ConfigurationError("LFP weights file format is wrong.Required group "
-                                         "not found in file: {}".format(group))
-        nodeids_group = self._lfp_file["node_ids"]
-        try:
-            circuit = nodeids_group.attrs['circuit']
-        except KeyError:
-            raise ConfigurationError("'circuit' attribute not found in 'node_ids' "
-                                     "group of LFP weights file")
-        logging.info("Circuit of the lfp config file: '%s'", circuit)
-        # Check that the circuit matches with any cell manager
-        for circuit_file in circuit_list:
-            circuit_file_is_set = circuit_file != "start.ncs"
-            if not circuit_file_is_set or circuit_file == circuit:
-                break
-        else:
-            logging.warning("Circuits don't match, aborting lfp config reading...")
-            self._lfp_file.close()
 
-    def read_lfp_factors(self, gid, section_ids):
+        # Check that the file contains the required groups for at least 1 population
+        populations_found = []
+        for pop_name in circuit_list:
+            req_groups = ['/electrodes/' + pop_name, pop_name + '/node_ids', pop_name + '/sec_ids']
+            if all(group in self._lfp_file for group in req_groups):
+                populations_found.append(pop_name)
+
+        if not populations_found:
+            raise ConfigurationError("The LFP weights file does not contain the necessary groups "
+                                     "'electrodes', 'node_ids', and 'sec_ids' in any of the "
+                                     "populations {}.".format(list(circuit_list)))
+
+        for population in populations_found:
+            nodeids_group = self._lfp_file[population]["node_ids"]
+            try:
+                circuit = nodeids_group.attrs['circuit']
+            except KeyError:
+                raise ConfigurationError("'circuit' attribute not found in 'node_ids' group of "
+                                         "LFP weights file for population '%s'", population)
+
+            logging.debug("Circuit of the lfp config file for population "
+                          "'%s': '%s'", population, circuit)
+            # Check that the circuit matches with any cell manager
+            for circuit_file in circuit_list.values():
+                circuit_file_is_set = circuit_file != "start.ncs"
+                if not circuit_file_is_set or circuit_file == circuit:
+                    break
+            else:
+                logging.warning("Circuits don't match, for population '%s'."
+                                "Aborting lfp config reading...", population)
+                self._lfp_file.close()
+
+    def get_sonata_node_id(self, gid, population_info):
+        return population_info[0], gid - population_info[1] - 1
+
+    def read_lfp_factors(self, gid, section_ids, population_info=("default", 0)):
         """
         Reads the local field potential (LFP) factors for a specific gid
         from an HDF5 file and returns the factors as a Nd.Vector.
@@ -476,6 +490,7 @@ class LFPManager:
         Args:
         gid (int): The unique cell identifier
         section_ids (List[int]): A list of section ids
+        population_info (Pair(str, int)): Population info ("population_name", population_offset)
 
         Returns:
         Nd.Vector: A vector containing the LFP factors for the specified gid and section ids
@@ -483,28 +498,28 @@ class LFPManager:
         scalar_factors = Nd.Vector()
         if self._lfp_file:
             try:
-                sonata_gid = int(gid)
-                electrodes_group = self._lfp_file["electrodes"]["electrode_grid"][str(sonata_gid)]
-                sections_group = self._lfp_file["sec_ids"][str(sonata_gid)]
+                population_name, node_id = self.get_sonata_node_id(gid, population_info)
+                electrodes_group = self._lfp_file["electrodes"][population_name][str(int(node_id))]
+                sections_group = self._lfp_file[population_name]["sec_ids"][str(int(node_id))]
                 for file_count, section in enumerate(sections_group):
                     if section in section_ids:
                         for electrode_factor in electrodes_group[file_count]:
                             scalar_factors.append(electrode_factor)
             except KeyError:
-                logging.warning("GID %d not found in LFP file" % sonata_gid)
+                logging.warning("GID %d not found in LFP file" % node_id)
         return scalar_factors
 
-    def get_number_electrodes(self, gid):
+    def get_number_electrodes(self, gid, population_info=("default", 0)):
         """Get number of electrodes of a certain gid
         """
         num_electrodes = 0
         if self._lfp_file:
             try:
-                sonata_gid = int(gid)
-                electrodes_group = self._lfp_file["electrodes"]["electrode_grid"][str(sonata_gid)]
+                population_name, node_id = self.get_sonata_node_id(gid, population_info)
+                electrodes_group = self._lfp_file["electrodes"][population_name][str(int(node_id))]
                 num_electrodes = electrodes_group.shape[1]
             except KeyError:
-                logging.warning("GID %d not found in LFP file" % sonata_gid)
+                logging.warning("GID %d not found in LFP file" % node_id)
         return num_electrodes
 
 
