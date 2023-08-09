@@ -9,18 +9,14 @@ Required Format
 ~~~~~~~~~~~~~~~~
 
 To perform online LFP calculation, a weights file is required. The weights file should follow a specific format to ensure proper functioning. 
-More information about this file can be found in the `SONATA Simulation Specification <https://github.com/BlueBrain/sonata-extension/blob/tharayil/source/sonata_simulation.rst#format-of-the-electrodes_file>`_
+More information about this file can be found in the `SONATA Simulation Specification <https://github.com/BlueBrain/sonata-extension/blob/master/source/sonata_tech.rst#format-of-the-electrodes_file>`_
 
-Generating the Electrodes File
+Generating the Electrodes File (WIP)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The electrodes file can be generated using specific steps and considerations. Follow the instructions below to generate the file:
 
-1. Step 1 of generating the weights file...
-2. Step 2 of generating the weights file...
-3. Step 3 of generating the weights file...
-    - Consideration 1 for generating the weights file...
-    - Consideration 2 for generating the weights file...
+    *TODO*
 
 Generating the LFP report
 --------------------------
@@ -126,12 +122,11 @@ Subsequently, an ERROR will be encountered when instantiating the LFP report:
 
 - **BlueConfig Deprecation**: It's important to be aware that support for LFP reports with BlueConfig will be deprecated. Going forward, all new features and enhancements will be developed exclusively for SONATA simulations. It is recommended to migrate to SONATA simulations to take advantage of the latest advancements and ensure long-term compatibility.
 
-- **Electrodes File Compatibility**: It is important to note that using an electrodes file intended for a different circuit than the one being used in your simulation will result in a warning and the absence of an LFP report. If the circuits do not match, the WARNING message will be displayed as follows:
+- **Electrodes File Compatibility**: It is important to note that using an electrodes file intended for a different circuit than the one being used in your simulation will result in a warning and the most likely absence of an LFP report since the node_ids and sections won't match. There will be several WARNING messages displayed as follows:
 
 .. code-block::
 
-    [INFO] Circuit of the lfp config file: '/gpfs/bbp.cscs.ch/project/proj1/circuits/SomatosensoryCxS1-v5.r0/O1-sonata/sonata/networks/nodes/default/nodes.h5'
-    [WARNING] Circuits don't match, aborting lfp config reading...
+    [WARNING] Node id X not found in the electrodes file
 
 To ensure accurate and valid LFP reports, make sure that the electrodes file corresponds to the circuit being used in your simulation.
 

@@ -437,7 +437,7 @@ class LFPManager:
     def __init__(self):
         self._lfp_file = None
 
-    def load_lfp_config(self, lfp_weights_file, circuit_list):
+    def load_lfp_config(self, lfp_weights_file, population_list):
         """Loads lfp weigths from h5 file
         """
         logging.info("Reading LFP configuration info from '%s'", lfp_weights_file)
@@ -449,7 +449,7 @@ class LFPManager:
 
         # Check that the file contains the required groups for at least 1 population
         populations_found = []
-        for pop_name in circuit_list:
+        for pop_name in population_list:
             req_groups = ['/electrodes/' + pop_name + '/scaling_factors', pop_name + '/node_ids',
                           pop_name + '/offsets']
             if all(group in self._lfp_file for group in req_groups):
@@ -458,27 +458,7 @@ class LFPManager:
         if not populations_found:
             raise ConfigurationError("The LFP weights file does not contain the necessary datasets "
                                      "'scaling_factors', 'node_ids' and 'offsets' "
-                                     "in any of the populations {}.".format(list(circuit_list)))
-
-        for population in populations_found:
-            nodeids_group = self._lfp_file[population]["node_ids"]
-            try:
-                circuit = nodeids_group.attrs['circuit']
-            except KeyError:
-                raise ConfigurationError("'circuit' attribute not found in 'node_ids' group of "
-                                         "LFP weights file for population '%s'", population)
-
-            logging.debug("Circuit of the lfp config file for population "
-                          "'%s': '%s'", population, circuit)
-            # Check that the circuit matches with any cell manager
-            for circuit_file in circuit_list.values():
-                circuit_file_is_set = circuit_file != "start.ncs"
-                if not circuit_file_is_set or circuit_file == circuit:
-                    break
-            else:
-                logging.warning("Circuits don't match, for population '%s'."
-                                "Aborting lfp config reading...", population)
-                self._lfp_file.close()
+                                     "in any of the populations {}.".format(population_list))
 
     def get_sonata_node_id(self, gid, population_info):
         return population_info[0], gid - population_info[1] - 1

@@ -447,12 +447,12 @@ class Node:
             if SimConfig.use_coreneuron:
                 lfp_manager = self._circuits.global_manager._lfp_manager
                 cell_managers = self._circuits.global_manager._cell_managers
-                circuit_list = {
-                    manager.population_name: manager._circuit_conf.CellLibraryFile
+                population_list = [
+                    manager.population_name
                     for manager in cell_managers
                     if manager.population_name is not None
-                }
-                lfp_manager.load_lfp_config(lfp_weights_file, circuit_list)
+                ]
+                lfp_manager.load_lfp_config(lfp_weights_file, population_list)
             else:
                 logging.warning("Online LFP supported only with CoreNEURON.")
 

@@ -34,9 +34,8 @@ def test_file(tmpdir):
         # Create population group
         population_group = test_file.create_group(population)
 
-        # Create node_ids dataset and set circuit attribute
-        node_ids = population_group.create_dataset("node_ids", data=gids)
-        node_ids.attrs["circuit"] = f"test_circuit_{population}.h5"
+        # Create node_ids dataset
+        population_group.create_dataset("node_ids", data=gids)
 
         # Create offsets dataset
         sec_ids_count = [2, 82, 140]
@@ -73,39 +72,28 @@ def test_load_lfp_config(tmpdir, test_file):
     from neurodamus.cell_distributor import LFPManager
     from neurodamus.core.configuration import ConfigurationError
 
-    # Test loading LFP config file from invalid circuit
-    lfp_invalid = LFPManager()
+    # Load the electrodes file
     lfp_weights_file = tmpdir.join("test_file.h5")
-    pop_circuit_invalid = {"default": "invalid_circuit.h5"}
-    lfp_invalid.load_lfp_config(lfp_weights_file, pop_circuit_invalid)
-    # File is closed
-    assert not lfp_invalid._lfp_file
 
     # Create an instance of the class
     lfp = LFPManager()
-    pop_circuit_dict = {"wrong_pop": "test_circuit2.h5", "default": "test_circuit_default.h5"}
+    pop_list = ["wrong_pop", "default"]
 
     # Test loading LFP configuration from file
-    lfp.load_lfp_config(lfp_weights_file, pop_circuit_dict)
+    lfp.load_lfp_config(lfp_weights_file, pop_list)
     assert lfp._lfp_file
     assert isinstance(lfp._lfp_file, h5py.File)
     assert "/electrodes/default" in lfp._lfp_file
     assert "/default/node_ids" in lfp._lfp_file
-    assert lfp._lfp_file["default"]["node_ids"].attrs['circuit'] == "test_circuit_default.h5"
-
-    # Test loading LFP configuration from file with wrong format
-    del lfp._lfp_file["default"]["node_ids"].attrs['circuit']
-    with pytest.raises(ConfigurationError):
-        lfp.load_lfp_config(lfp_weights_file, pop_circuit_dict)
 
     del lfp._lfp_file["default"]["node_ids"]
     with pytest.raises(ConfigurationError):
-        lfp.load_lfp_config(lfp_weights_file, pop_circuit_dict)
+        lfp.load_lfp_config(lfp_weights_file, pop_list)
 
     # Test loading LFP configuration from invalid file
     lfp_weights_invalid_file = "./invalid_file.h5"
     with pytest.raises(ConfigurationError):
-        lfp.load_lfp_config(lfp_weights_invalid_file, pop_circuit_dict)
+        lfp.load_lfp_config(lfp_weights_invalid_file, pop_list)
 
 
 def test_read_lfp_factors(test_file):
@@ -185,11 +173,7 @@ def test_v5_sonata_lfp(tmpdir, test_file):
 
     config_file = str(SIM_DIR / "v5_sonata" / "simulation_config_lfp.json")
     output_dir = str(SIM_DIR / "v5_sonata" / "output_coreneuron")
-    population_name = "default"
 
-    test_file[population_name]["node_ids"].attrs['circuit'] = "/gpfs/bbp.cscs.ch/project/proj1/" \
-                                             "circuits/SomatosensoryCxS1-v5.r0/O1-sonata/sonata" \
-                                             "/networks/nodes/default/nodes.h5"
     lfp_weights_file = tmpdir.join("test_file.h5")
     tmp_file = _create_tmpconfig_lfp(config_file, lfp_weights_file)
 
