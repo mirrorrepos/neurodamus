@@ -445,13 +445,14 @@ class LFPManager:
         try:
             self._lfp_file = h5py.File(lfp_weights_file, 'r')
         except IOError as e:
-            raise ConfigurationError(e)
+            raise ConfigurationError(f"Error opening LFP electrodes file: {e}")
 
         # Check that the file contains the required groups for at least 1 population
         populations_found = []
         for pop_name in population_list:
-            req_groups = ['/electrodes/' + pop_name + '/scaling_factors', pop_name + '/node_ids',
-                          pop_name + '/offsets']
+
+            req_groups = [f'/electrodes/{pop_name}/scaling_factors', f'{pop_name}/node_ids',
+                          f'{pop_name}/offsets']
             if all(group in self._lfp_file for group in req_groups):
                 populations_found.append(pop_name)
 
@@ -498,8 +499,7 @@ class LFPManager:
                 for electrode_factors in subset_data:
                     scalar_factors.append(Nd.Vector(electrode_factors))
             except (KeyError, IndexError) as e:
-                logging.warning("Node id {} not found in the electrodes file", node_id)
-                logging.warning(str(e))
+                logging.warning("Node id {} not found in the electrodes file: {}", node_id, str(e))
         return scalar_factors
 
     def get_number_electrodes(self, gid, population_info=("default", 0)):
@@ -513,7 +513,7 @@ class LFPManager:
                 num_electrodes = subset_data.shape[1]
 
             except (KeyError, IndexError) as e:
-                logging.warning(str(e))
+                logging.warning("Node id {} not found in the electrodes file: {}", node_id, str(e))
         return num_electrodes
 
 
